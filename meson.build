@@ -95,6 +95,10 @@ flags = defines + [
   '-Wno-deprecated-declarations',
   '-Wno-vla-cxx-extension',
   '-Wno-unknown-warning-option',
+  # As upstream's Xcode project (CLANG_WARN_UNGUARDED_AVAILABILITY = NO, iOS
+  # 15.0): newer Metal is gated at run time by mvkOSVersionIsAtLeast, which
+  # clang cannot see.
+  '-Wno-unguarded-availability-new',
 ]
 
 git_rev = configure_file(
