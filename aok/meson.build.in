@@ -34,10 +34,16 @@ flags = defines + [
   '-Wno-unguarded-availability-new',
 ]
 
-git_rev = configure_file(
+# The pipeline cache UUID starts with this revision's first 8 hex digits, and
+# the cache holds translated MSL: a fixed string here would let MSL translated
+# before a SPIRV-Cross fix outlive the fix in every client's disk cache (zink
+# keeps one). vcs_tag re-reads the commit on every build.
+git_rev = vcs_tag(
+  command: ['git', '-C', meson.current_source_dir(), 'rev-parse', 'HEAD'],
   input: 'Templates/cmake/mvkGitRevDerived.h.in',
   output: 'mvkGitRevDerived.h',
-  configuration: {'MVK_GIT_REV': 'v' + meson.project_version() + '-ish-aok'},
+  replace_string: '@MVK_GIT_REV@',
+  fallback: 'v' + meson.project_version() + '-ish-aok',
 )
 
 vulkan_inc = include_directories('aok/external/Vulkan-Headers/include')
