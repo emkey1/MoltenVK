@@ -16686,6 +16686,25 @@ const std::unordered_set<std::string> &CompilerMSL::get_reserved_keyword_set()
 		"thread",
 		"threadgroup",
 		"signed",
+		// MSL type names: a variable named "sampler" (zink passes GLSL names
+		// through) shadows the type, and the next "sampler fooSmplr" fails.
+		"sampler",
+		"texture1d",
+		"texture1d_array",
+		"texture2d",
+		"texture2d_array",
+		"texture2d_ms",
+		"texture2d_ms_array",
+		"texture3d",
+		"texturecube",
+		"texturecube_array",
+		"texture_buffer",
+		"depth2d",
+		"depth2d_array",
+		"depth2d_ms",
+		"depth2d_ms_array",
+		"depthcube",
+		"depthcube_array",
 	};
 
 	return keywords;
