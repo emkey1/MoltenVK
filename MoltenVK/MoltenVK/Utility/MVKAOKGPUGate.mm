@@ -4,6 +4,8 @@
 
 #include "MVKAOKGPUGate.h"
 
+#import <Metal/Metal.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -24,4 +26,19 @@ void mvkAOKWaitGPUAllowed() {
 	if (gpuAllowed.load(std::memory_order_acquire)) { return; }
 	std::unique_lock<std::mutex> lock(gateMutex);
 	gateOpened.wait(lock, [] { return gpuAllowed.load(); });
+}
+
+unsigned mvkAOKLinearRowAlignment(void) {
+	static std::atomic<unsigned> cached{0};
+	unsigned align = cached.load();
+	if (align == 0) {
+		@autoreleasepool {
+			id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+			align = device ? (unsigned)[device minimumLinearTextureAlignmentForPixelFormat: MTLPixelFormatBGRA8Unorm] : 0;
+			[device release];
+		}
+		if (align < 16) { align = 16; }
+		cached.store(align);
+	}
+	return align;
 }

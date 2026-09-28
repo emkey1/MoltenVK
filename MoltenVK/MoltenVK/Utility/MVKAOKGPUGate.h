@@ -17,6 +17,14 @@ extern "C" {
 /** Whether command buffers may be committed. Any thread. */
 void mvkAOKSetGPUAllowed(int allowed);
 
+/**
+ * The byte alignment of a row of a linear 32-bit image on this GPU
+ * (-[MTLDevice minimumLinearTextureAlignmentForPixelFormat:], which MoltenVK
+ * pads VK_IMAGE_TILING_LINEAR rows to): 16 on M-series GPUs, 64 on an A10X.
+ * Buffers shared with the host as linear images must use it.
+ */
+unsigned mvkAOKLinearRowAlignment(void);
+
 #ifdef __cplusplus
 }
 
