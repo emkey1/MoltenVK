@@ -4316,11 +4316,29 @@ uint32_t CompilerMSL::add_interface_block(StorageClass storage, bool patch)
 				// This is only relevant for vertex inputs and fragment outputs.
 				// Technically tessellation as well, but it is too complicated to support.
 				uint32_t component = get_decoration(var_id, DecorationComponent);
+
+				// A fragment input may read one component of a location that the previous stage
+				// wrote as a single wider vector (zink reads texcoord .w apart from .xy). Metal
+				// matches user() attributes by name and type, so declare the location once, as wide
+				// as the previous stage's output, and swizzle each variable out of it.
+				bool pack_to_prev_stage = false;
+				uint32_t prev_stage_vecsize = 0;
+				if (component != 0 && storage == StorageClassInput &&
+				    get_execution_model() == ExecutionModelFragment && type.array.empty())
+				{
+					auto p_va = inputs_by_location.find({ location, 0 });
+					if (p_va != end(inputs_by_location) && p_va->second.vecsize >= component + type.vecsize)
+					{
+						pack_to_prev_stage = true;
+						prev_stage_vecsize = p_va->second.vecsize;
+					}
+				}
+
 				if (component != 0)
 				{
 					if (is_tessellation_shader())
 						SPIRV_CROSS_THROW("Component decoration is not supported in tessellation shaders.");
-					else if (pack_components)
+					else if (pack_components || pack_to_prev_stage)
 					{
 						uint32_t array_size = 1;
 						if (!type.array.empty())
@@ -4330,6 +4348,7 @@ uint32_t CompilerMSL::add_interface_block(StorageClass storage, bool patch)
 						{
 							auto &location_meta = meta.location_meta[location + location_offset];
 							location_meta.num_components = max<uint32_t>(location_meta.num_components, component + type.vecsize);
+							location_meta.num_components = max<uint32_t>(location_meta.num_components, prev_stage_vecsize);
 
 							// For variables sharing location, decorations and base type must match.
 							location_meta.base_type_id = type.self;
