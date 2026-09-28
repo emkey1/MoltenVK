@@ -391,6 +391,7 @@ protected:
     std::mutex _lock;
     IOSurfaceRef _ioSurface;
 	VkDeviceSize _rowByteAlignment;
+	VkDeviceSize _rowPitchOverride = 0;		// iSH-AOK: see mvkAOKSetNextImageRowPitch
     bool _isDepthStencilAttachment;
     bool _hasExpectedTexelSize;
     bool _hasChromaSubsampling;

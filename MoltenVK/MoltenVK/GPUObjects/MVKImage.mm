@@ -847,6 +847,7 @@ VkExtent3D MVKImage::getExtent3D(uint8_t planeIndex, uint32_t mipLevel) {
 }
 
 VkDeviceSize MVKImage::getBytesPerRow(MTLPixelFormat planePixelFormat, uint32_t mipWidth) {
+    if (_rowPitchOverride && mipWidth == _extent.width) { return _rowPitchOverride; }
     size_t bytesPerRow = getPixelFormats()->getBytesPerRow(planePixelFormat, mipWidth);
     return mvkAlignByteCount(bytesPerRow, _rowByteAlignment);
 }
@@ -1260,6 +1261,16 @@ MVKImage::MVKImage(MVKDevice* device, const VkImageCreateInfo* pCreateInfo) : MV
     MTLPixelFormat mtlPixFmtOfPlane[3];
 	uint8_t subsamplingPlaneCount = pixFmts->getChromaSubsamplingPlanes(_vkFormat, blockTexelSizeOfPlane, bytesPerBlockOfPlane, mtlPixFmtOfPlane);
 	uint8_t planeCount = std::max(subsamplingPlaneCount, (uint8_t)1);
+
+	// iSH-AOK: a shared linear buffer's own row pitch (mvkAOKSetNextImageRowPitch),
+	// before the planes lay their subresources out with it.
+	_rowPitchOverride = 0;
+	unsigned long long aokRowPitch = mvkAOKTakeNextImageRowPitch();
+	if (aokRowPitch && _isLinear && _mipLevels == 1 && planeCount == 1) {
+		VkDeviceSize natural = mvkAlignByteCount(pixFmts->getBytesPerRow(pixFmts->getMTLPixelFormat(_vkFormat), _extent.width), _rowByteAlignment);
+		if (aokRowPitch >= natural && aokRowPitch % _rowByteAlignment == 0) { _rowPitchOverride = aokRowPitch; }
+	}
+
     uint8_t memoryBindingCount = (pCreateInfo->flags & VK_IMAGE_CREATE_DISJOINT_BIT) ? planeCount : 1;
     _hasChromaSubsampling = (subsamplingPlaneCount > 0);
 

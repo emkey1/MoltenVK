@@ -42,3 +42,15 @@ unsigned mvkAOKLinearRowAlignment(void) {
 	}
 	return align;
 }
+
+static thread_local unsigned long long nextImageRowPitch = 0;
+
+void mvkAOKSetNextImageRowPitch(unsigned long long rowPitch) {
+	nextImageRowPitch = rowPitch;
+}
+
+unsigned long long mvkAOKTakeNextImageRowPitch() {
+	unsigned long long rowPitch = nextImageRowPitch;
+	nextImageRowPitch = 0;
+	return rowPitch;
+}
