@@ -62,6 +62,7 @@ mvk_sources = files(
   'MoltenVK/MoltenVK/OS/MTLSamplerDescriptor+MoltenVK.m',
   'MoltenVK/MoltenVK/OS/MVKGPUCapture.mm',
   'MoltenVK/MoltenVK/OS/NSString+MoltenVK.mm',
+  'MoltenVK/MoltenVK/Utility/MVKAOKGPUGate.mm',
   'MoltenVK/MoltenVK/Utility/MVKBaseObject.mm',
   'MoltenVK/MoltenVK/Utility/MVKBlockObserver.m',
   'MoltenVK/MoltenVK/Utility/MVKCodec.mm',

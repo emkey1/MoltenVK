@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include "MVKAOKGPUGate.h"
 #include "MVKCommandBuffer.h"
 #include "MVKFramebuffer.h"
 #include "MVKCommandPool.h"
@@ -361,6 +362,7 @@ void MVKCommandBuffer::clearPrefilledMTLCommandBuffer() {
 	// a prefilled Metal command buffer that the app did not intend to submit, potentially
 	// causing unexpected side effects. But unfortunately there is nothing else we can do.
 	if (_prefilledMTLCmdBuffer && _prefilledMTLCmdBuffer.status == MTLCommandBufferStatusNotEnqueued) {
+		mvkAOKWaitGPUAllowed();
 		[_prefilledMTLCmdBuffer commit];
 	}
 

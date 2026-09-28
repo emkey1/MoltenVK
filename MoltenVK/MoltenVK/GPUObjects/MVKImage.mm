@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include "MVKAOKGPUGate.h"
 #include "MVKImage.h"
 #include "MVKQueue.h"
 #include "MVKSwapchain.h"
@@ -816,6 +817,7 @@ VkResult MVKImage::copyImageToMemory(const VkCopyImageToMemoryInfo* pCopyImageTo
 			}
 
 			[mtlBlitEnc endEncoding];
+			mvkAOKWaitGPUAllowed();
 			[mtlCmdBuff commit];
 			[mtlCmdBuff waitUntilCompleted];
 		}
@@ -1590,6 +1592,7 @@ VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphor
 			}
 			signal(signaler.semaphore, signaler.semaphoreSignalToken, mtlCmdBuff);
 			signal(signaler.fence);
+			mvkAOKWaitGPUAllowed();
 			[mtlCmdBuff commit];
 		}
 

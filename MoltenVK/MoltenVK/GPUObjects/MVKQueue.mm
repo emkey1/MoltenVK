@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include "MVKAOKGPUGate.h"
 #include "MVKInstance.h"
 #include "MVKQueue.h"
 #include "MVKSurface.h"
@@ -157,6 +158,7 @@ VkResult MVKQueue::waitIdle(MVKCommandUse cmdUse) {
 	}
 	@autoreleasepool {
 		auto* mtlCmdBuff = getMTLCommandBuffer(cmdUse);
+		mvkAOKWaitGPUAllowed();
 		[mtlCmdBuff commit];
 		[mtlCmdBuff waitUntilCompleted];
 	}
@@ -228,8 +230,19 @@ void MVKQueue::handleMTLCommandBufferError(id<MTLCommandBuffer> mtlCmdBuff) {
 	bool markDeviceLoss = !getMVKConfig().resumeLostDevice;
 	bool markPhysicalDeviceLoss = false;
 	switch (mtlCmdBuff.error.code) {
+#if !MVK_MACOS
+		// iSH-AOK: refused because the app is in the background (MVKAOKGPUGate.h
+		// holds commits there, but one may slip past as the app goes). The
+		// device is fine; only this command buffer's work is lost.
+		case MTLCommandBufferErrorNotPermitted:
+			vkErr = VK_ERROR_DEVICE_LOST;
+			markDeviceLoss = false;
+			break;
+#endif
 		case MTLCommandBufferErrorBlacklisted:
+#if MVK_MACOS
 		case MTLCommandBufferErrorNotPermitted:	// May also be used for command buffers executed in the background without the right entitlement.
+#endif
 #if MVK_MACOS && !MVK_MACCAT
 		case MTLCommandBufferErrorDeviceRemoved:
 #endif
@@ -553,6 +566,7 @@ VkResult MVKQueueCommandBufferSubmission::commitActiveMTLCommandBuffer(bool sign
 
 	// Retrieve the result before committing MTLCommandBuffer, because finish() will destroy this instance.
 	VkResult rslt = mtlCmdBuff ? getConfigurationResult() : VK_ERROR_OUT_OF_POOL_MEMORY;
+	mvkAOKWaitGPUAllowed();
 	[mtlCmdBuff commit];
 	[mtlCmdBuff release];		// retained
 
@@ -744,6 +758,7 @@ VkResult MVKQueuePresentSurfaceSubmission::execute() {
 	VkResult rslt = getConfigurationResult();
 	if (mtlCmdBuff) {
 		[mtlCmdBuff addCompletedHandler: ^(id<MTLCommandBuffer> mtlCB) { this->finish(); }];
+		mvkAOKWaitGPUAllowed();
 		[mtlCmdBuff commit];
 	} else {
 		finish();

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include "MVKAOKGPUGate.h"
 #include "MVKInstance.h"
 #include "MVKDevice.h"
 #include "MVKQueue.h"
@@ -4797,6 +4798,7 @@ VkResult MVKDevice::invalidateMappedMemoryRanges(uint32_t memRangeCount, const V
 		}
 		if (mvkBlitEnc.mtlBlitEncoder) { [mvkBlitEnc.mtlBlitEncoder endEncoding]; }
 		if (mvkBlitEnc.mtlCmdBuffer) {
+			mvkAOKWaitGPUAllowed();
 			[mvkBlitEnc.mtlCmdBuffer commit];
 			[mvkBlitEnc.mtlCmdBuffer waitUntilCompleted];
 		}
