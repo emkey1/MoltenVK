@@ -685,7 +685,12 @@ void MVKPhysicalDevice::getFeatures(VkPhysicalDeviceFeatures2* features) {
 			}
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT: {
 				auto* extDynState = (VkPhysicalDeviceExtendedDynamicStateFeaturesEXT*)next;
-				extDynState->extendedDynamicState = true;
+				// The feature covers VK_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE, which
+				// fails every pipeline naming it without dynamicVertexStride (Apple3 GPUs
+				// such as the A10X, and iOS before 17): zink uses it for every draw, so
+				// its first draw lost the context. Without the feature zink uses static
+				// strides.
+				extDynState->extendedDynamicState = _metalFeatures.dynamicVertexStride;
 				break;
 			}
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT: {
