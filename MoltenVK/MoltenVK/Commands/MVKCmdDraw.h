@@ -184,6 +184,15 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 	void encode(MVKCommandEncoder* cmdEncoder, const MVKIndexMTLBufferBinding& ibbOrig);
 
+	/**
+	 * iSH-AOK: the index count of the one draw this stands in for, when a direct
+	 * draw (vkCmdDraw, vkCmdDrawIndexed) is encoded through here. Lets a triangle
+	 * fan's converted indexes take exactly the room they need, written from the
+	 * start of their buffer, instead of a buffer for the worst case of an indirect
+	 * draw (kMVKMaxDrawIndirectVertexCount) indexed from the draw's first index.
+	 */
+	void setDirectIndexCount(uint32_t indexCount) { _directIndexCount = indexCount; }
+
 protected:
 	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 
@@ -192,4 +201,5 @@ protected:
 	uint32_t _mtlIndirectBufferStride;
 	uint32_t _drawCount;
 	uint32_t _directCmdFirstInstance;
+	uint32_t _directIndexCount = 0;
 };

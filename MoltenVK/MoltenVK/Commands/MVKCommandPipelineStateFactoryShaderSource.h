@@ -222,6 +222,8 @@ typedef struct MVKVtxAdj {
 	bool isPrimRestart;
 	bool isUint8Index;
 	bool isProvokingVertexLast;
+	bool triIdxsAtZero;
+	uint32_t triIdxCapacity;
 } MVKVtxAdj;
 
 // Populates triangle vertex indexes for a triangle fan.
@@ -267,6 +269,7 @@ kernel void cmdDrawIndirectPopulateIndexes(const device char* srcBuff [[buffer(0
                                            constant uint32_t& srcStride [[buffer(2)]],
                                            constant uint32_t& drawCount [[buffer(3)]],
                                            device uint32_t* idxBuff [[buffer(4)]],
+                                           constant uint32_t& idxCapacity [[buffer(5)]],
                                            uint idx [[thread_position_in_grid]]) {
 	if (idx >= drawCount) { return; }
 	const device auto& src = *reinterpret_cast<const device MTLDrawPrimitivesIndirectArguments*>(srcBuff + idx * srcStride);
@@ -276,6 +279,14 @@ kernel void cmdDrawIndirectPopulateIndexes(const device char* srcBuff [[buffer(0
 	dst.baseVertex = 0;
 	dst.instanceCount = src.instanceCount;
 	dst.baseInstance = src.baseInstance;
+	// iSH-AOK: the synthetic indexes go at the draw's first vertex, in a buffer
+	// of idxCapacity entries; a draw that would run past it is dropped, not
+	// written out of bounds (see cmdDrawIndexedIndirectConvertBuffers).
+	if (dst.indexStart + dst.indexCount > idxCapacity || dst.indexStart + dst.indexCount < dst.indexStart) {
+		dst.indexCount = 0;
+		dst.indexStart = 0;
+		return;
+	}
 
 	for (uint32_t idxIdx = 0; idxIdx < dst.indexCount; idxIdx++) {
 		uint32_t idxBuffIdx = dst.indexStart + idxIdx;
@@ -313,16 +324,34 @@ kernel void cmdDrawIndexedIndirectConvertBuffers(const device char* srcBuff [[bu
 		dst.instanceCount *= viewCount;
 	}
 	if (vtxAdj.isTriFan) {
-		dst.indexCount = (src.indexCount - 2) * 3;
+		// iSH-AOK: the converted indexes must fit their buffer. They were written
+		// at the draw's own first index into a buffer of a fixed 128K entries, so a
+		// fan far into a large index buffer (zink streams its indexes) wrote past
+		// the end -- into the pool's neighbouring allocations, and the draw then
+		// read its indexes from out there: a GPU page fault (device lost) in
+		// Tux Racer's race. A direct draw now writes from the start of a buffer
+		// sized for it; an indirect draw that would not fit is dropped rather
+		// than allowed to write out of bounds. Fewer than three indexes is no
+		// triangle, not (count - 2) * 3 wrapped to four billion.
+		uint32_t triIdxCount = src.indexCount >= 3 ? (src.indexCount - 2) * 3 : 0;
+		uint32_t triIdxStart = vtxAdj.triIdxsAtZero ? 0 : dst.indexStart;
+		if (triIdxCount == 0 || triIdxStart + triIdxCount > vtxAdj.triIdxCapacity ||
+		    triIdxStart + triIdxCount < triIdxStart) {
+			dst.indexCount = 0;
+			dst.indexStart = 0;
+			return;
+		}
+		dst.indexStart = triIdxStart;
+		dst.indexCount = triIdxCount;
 		switch (vtxAdj.idxType) {
 			case MTLIndexTypeUInt16:
-				populateTriIndxsFromTriFan(&((device uint16_t*)triIdxs)[dst.indexStart],
+				populateTriIndxsFromTriFan(&((device uint16_t*)triIdxs)[triIdxStart],
 				                           &((constant uint16_t*)triFanIdxs)[src.indexStart],
 				                           src.indexCount,
 				                           vtxAdj);
 				break;
 			case MTLIndexTypeUInt32:
-				populateTriIndxsFromTriFan(&((device uint32_t*)triIdxs)[dst.indexStart],
+				populateTriIndxsFromTriFan(&((device uint32_t*)triIdxs)[triIdxStart],
 				                           &((constant uint32_t*)triFanIdxs)[src.indexStart],
 				                           src.indexCount,
 				                           vtxAdj);

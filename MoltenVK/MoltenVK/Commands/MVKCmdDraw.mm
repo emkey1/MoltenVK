@@ -166,6 +166,7 @@ void MVKCmdDraw::encodeIndexedIndirect(MVKCommandEncoder* cmdEncoder) {
 					  1,
 					  indirectIdxBuffStride,
 					  _firstInstance);
+	diiCmd.setDirectIndexCount(_vertexCount);
 	diiCmd.encode(cmdEncoder, ibb);
 }
 
@@ -394,6 +395,7 @@ void MVKCmdDrawIndexed::encodeIndexedIndirect(MVKCommandEncoder* cmdEncoder) {
 					  1,
 					  indirectIdxBuffStride,
 					  _firstInstance);
+	diiCmd.setDirectIndexCount(_indexCount);
 	diiCmd.encode(cmdEncoder);
 }
 
@@ -699,6 +701,7 @@ void MVKCmdDrawIndirect::encodeIndexedIndirect(MVKCommandEncoder* cmdEncoder) {
 	state.bindStructBytes(mtlConvertEncoder, &_mtlIndirectBufferStride, 2);
 	state.bindStructBytes(mtlConvertEncoder, &_drawCount,               3);
 	state.bindBuffer(mtlConvertEncoder, ibb.mtlBuffer, ibb.offset, 4);
+	state.bindStructBytes(mtlConvertEncoder, &kMVKMaxDrawIndirectVertexCount, 5);
 	if (cmdEncoder->getMetalFeatures().nonUniformThreadgroups) {
 		[mtlConvertEncoder dispatchThreads: MTLSizeMake(_drawCount, 1, 1)
 					 threadsPerThreadgroup: MTLSizeMake(mtlConvertState.threadExecutionWidth, 1, 1)];
@@ -982,6 +985,8 @@ typedef struct MVKVertexAdjustments {
 	bool isPrimRestart = true;
 	bool isUint8Index = false;
 	bool isProvokingVertexLast = false;
+	bool triIdxsAtZero = false;		// iSH-AOK: see cmdDrawIndexedIndirectConvertBuffers
+	uint32_t triIdxCapacity = 0;
 
 	bool needsAdjustment() { return isMultiView || isTriangleFan; }
 } MVKVertexAdjustments;
@@ -1126,7 +1131,18 @@ void MVKCmdDrawIndexedIndirect::encode(MVKCommandEncoder* cmdEncoder, const MVKI
         mtlIndBuff = tempIndirectBuff->_mtlBuffer;
         mtlTempIndBuffOfst = tempIndirectBuff->_offset;
 		if (vtxAdjmts.isTriangleFan) {
-			auto* triVtxBuff = cmdEncoder->getTempMTLBuffer(mvkMTLIndexTypeSizeInBytes((MTLIndexType)ibb.mtlIndexType) * kMVKMaxDrawIndirectVertexCount, true);
+			// iSH-AOK: a direct draw's converted indexes take exactly their room,
+			// from the start of the buffer. Every fan used to take a 512 KB buffer
+			// for the worst case of an indirect draw: thousands of fan draws in
+			// flight held 2.9 GB of private GPU memory in Tux Racer's race, and the
+			// app was killed at its 6 GB limit.
+			if (_drawCount == 1 && _directIndexCount) {
+				vtxAdjmts.triIdxsAtZero = true;
+				vtxAdjmts.triIdxCapacity = _directIndexCount >= 3 ? (_directIndexCount - 2) * 3 : 1;
+			} else {
+				vtxAdjmts.triIdxCapacity = kMVKMaxDrawIndirectVertexCount;
+			}
+			auto* triVtxBuff = cmdEncoder->getTempMTLBuffer(mvkMTLIndexTypeSizeInBytes((MTLIndexType)ibb.mtlIndexType) * vtxAdjmts.triIdxCapacity, true);
 			ibb.mtlBuffer = triVtxBuff->_mtlBuffer;
 			ibb.offset = triVtxBuff->_offset;
 		}
