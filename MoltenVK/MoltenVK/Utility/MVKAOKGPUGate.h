@@ -35,6 +35,16 @@ unsigned mvkAOKLinearRowAlignment(void);
  */
 void mvkAOKSetNextImageRowPitch(unsigned long long rowPitch);
 
+/**
+ * What MoltenVK holds outside the VkDeviceMemory clients asked for, for
+ * /proc/ish/host_vm: out[0] descriptor pool bytes, [1] pools, [2] bytes of
+ * textures of their own, [3] such textures, [4] live pipelines, [5] pipelines
+ * ever created, [6] live shader libraries, [7] libraries ever created, [8] bytes
+ * of private temporary buffers (MVKMTLBufferAllocationPool), [9] those buffers,
+ * [10] bytes of shared temporary buffers, [11] those buffers.
+ */
+void mvkAOKMemStats(unsigned long long out[12]);
+
 #ifdef __cplusplus
 }
 

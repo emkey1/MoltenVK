@@ -3,6 +3,7 @@
  */
 
 #include "MVKAOKGPUGate.h"
+#include "MVKAOKMemTrack.h"
 
 #import <Metal/Metal.h>
 
@@ -53,4 +54,19 @@ unsigned long long mvkAOKTakeNextImageRowPitch() {
 	unsigned long long rowPitch = nextImageRowPitch;
 	nextImageRowPitch = 0;
 	return rowPitch;
+}
+
+void mvkAOKMemStats(unsigned long long out[12]) {
+	out[0] = mvkAOKMemLive[MVKAOKMemDescriptorPool].load();
+	out[1] = mvkAOKMemCount[MVKAOKMemDescriptorPool].load();
+	out[2] = mvkAOKMemLive[MVKAOKMemTexture].load();
+	out[3] = mvkAOKMemCount[MVKAOKMemTexture].load();
+	out[4] = (unsigned long long)mvkAOKCountLive[MVKAOKCountPipeline].load();
+	out[5] = (unsigned long long)mvkAOKCountTotal[MVKAOKCountPipeline].load();
+	out[6] = (unsigned long long)mvkAOKCountLive[MVKAOKCountShaderLibrary].load();
+	out[7] = (unsigned long long)mvkAOKCountTotal[MVKAOKCountShaderLibrary].load();
+	out[8] = mvkAOKMemLive[MVKAOKMemTempPrivate].load();
+	out[9] = mvkAOKMemCount[MVKAOKMemTempPrivate].load();
+	out[10] = mvkAOKMemLive[MVKAOKMemTempShared].load();
+	out[11] = mvkAOKMemCount[MVKAOKMemTempShared].load();
 }

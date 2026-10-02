@@ -90,6 +90,7 @@ protected:
     uint32_t _bytesPerBlock;
     MTLPixelFormat _mtlPixFmt;
     id<MTLTexture> _mtlTexture;
+    uint64_t _aokTrackedBytes = 0;    // iSH-AOK: in mvkAOKMemTrack
     std::unordered_map<NSUInteger, id<MTLTexture>> _mtlTextureViews;
     MVKSmallVector<MVKImageSubresource, 1> _subresources;
     HeapAllocation _heapAllocation;

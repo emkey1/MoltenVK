@@ -17,6 +17,7 @@
  */
 
 #include "MVKMTLBufferAllocation.h"
+#include "MVKAOKMemTrack.h"
 
 
 #pragma mark -
@@ -46,6 +47,8 @@ MVKMTLBufferAllocation* MVKMTLBufferAllocationPool::newObject() {
 void MVKMTLBufferAllocationPool::addMTLBuffer() {
     MTLResourceOptions mbOpts = (_mtlStorageMode << MTLResourceStorageModeShift) | MTLResourceCPUCacheModeDefaultCache;
     _mtlBuffers.push_back({ [getMTLDevice() newBufferWithLength: _mtlBufferLength options: mbOpts], 0 });
+    mvkAOKMemTrack(_mtlStorageMode == MTLStorageModePrivate ? MVKAOKMemTempPrivate : MVKAOKMemTempShared,
+                   _mtlBufferLength, true);
 	getDevice()->makeResident(_mtlBuffers.back().mtlBuffer);
     _nextOffset = 0;
 }
@@ -108,6 +111,8 @@ uint32_t MVKMTLBufferAllocationPool::calcMTLBufferAllocationCount() {
 MVKMTLBufferAllocationPool::~MVKMTLBufferAllocationPool() {
     for (uint32_t bufferIndex = 0; bufferIndex < _mtlBuffers.size(); ++bufferIndex) {
 		getDevice()->removeResidency(_mtlBuffers[bufferIndex].mtlBuffer);
+        mvkAOKMemTrack(_mtlStorageMode == MTLStorageModePrivate ? MVKAOKMemTempPrivate : MVKAOKMemTempShared,
+                       _mtlBufferLength, false);
         [_mtlBuffers[bufferIndex].mtlBuffer release];
     }
     _mtlBuffers.clear();

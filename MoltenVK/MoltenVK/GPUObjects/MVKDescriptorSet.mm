@@ -25,6 +25,7 @@
 #include "MVKInstance.h"
 #include "MVKImage.h"
 #include "MVKOSExtensions.h"
+#include "MVKAOKMemTrack.h"
 #include <sstream>
 
 static constexpr uint32_t alignDescriptorOffset(uint32_t offset, uint32_t align) {
@@ -2001,6 +2002,9 @@ MVKDescriptorPool* MVKDescriptorPool::Create(MVKDevice* device, const VkDescript
 	ret->_cpuBufferAlignment = cpuAlign;
 	ret->_gpuBufferAlignment = gpuAlign;
 	ret->_freeAllowed = mvkIsAnyFlagEnabled(pCreateInfo->flags, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
+	// iSH-AOK: the pool's CPU side and its GPU buffer, together.
+	ret->_aokTrackedBytes = cpuSize + gpuSize;
+	mvkAOKMemTrack(MVKAOKMemDescriptorPool, ret->_aokTrackedBytes, true);
 
 	if (gpuSize) {
 		if (hostOnly) {
@@ -2018,6 +2022,7 @@ MVKDescriptorPool* MVKDescriptorPool::Create(MVKDevice* device, const VkDescript
 }
 
 MVKDescriptorPool::~MVKDescriptorPool() {
+	mvkAOKMemTrack(MVKAOKMemDescriptorPool, _aokTrackedBytes, false);
 	[_gpuBufferObject release];
 }
 

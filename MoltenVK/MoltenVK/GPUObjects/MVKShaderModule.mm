@@ -19,6 +19,7 @@
 #include "MVKShaderModule.h"
 #include "MVKPipeline.h"
 #include "MVKFoundation.h"
+#include "MVKAOKMemTrack.h"
 #include <sys/stat.h>
 
 using namespace std;
@@ -204,6 +205,7 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
 	MVKBaseDeviceObject(owner->getDevice()),
 	_owner(owner),
 	_maySpecializeWithMacro(true) {
+	mvkAOKCountTrack(MVKAOKCountShaderLibrary, true);
 
 	_shaderConversionResultInfo = conversionResult.resultInfo;
 	compressMSL(conversionResult.msl);
@@ -217,6 +219,7 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
 	MVKBaseDeviceObject(owner->getDevice()),
 	_owner(owner),
 	_maySpecializeWithMacro(specializationMacroDef == nullptr) {
+	mvkAOKCountTrack(MVKAOKCountShaderLibrary, true);
 
 	_shaderConversionResultInfo = resultInfo;
 	_compressedMSL = compressedMSL;
@@ -252,6 +255,7 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
 	MVKBaseDeviceObject(owner->getDevice()),
 	_owner(owner),
 	_maySpecializeWithMacro(false) {
+	mvkAOKCountTrack(MVKAOKCountShaderLibrary, true);
 
     uint64_t startTime = getPerformanceTimestamp();
     @autoreleasepool {
@@ -272,6 +276,7 @@ MVKShaderLibrary::MVKShaderLibrary(const MVKShaderLibrary& other) :
 	_owner(other._owner),
 	_maySpecializeWithMacro(other._maySpecializeWithMacro),
 	_specializationVariants(other._specializationVariants) {
+	mvkAOKCountTrack(MVKAOKCountShaderLibrary, true);
 
 	_mtlLibrary = [other._mtlLibrary retain];
 	_shaderConversionResultInfo = other._shaderConversionResultInfo;
@@ -306,6 +311,7 @@ void MVKShaderLibrary::handleCompilationError(NSError* err, const char* opDesc) 
 }
 
 MVKShaderLibrary::~MVKShaderLibrary() {
+	mvkAOKCountTrack(MVKAOKCountShaderLibrary, false);
 	[_mtlLibrary release];
 
 	for (auto& item: _specializationVariants) {

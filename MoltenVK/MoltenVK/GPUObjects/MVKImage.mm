@@ -17,6 +17,7 @@
  */
 
 #include "MVKAOKGPUGate.h"
+#include "MVKAOKMemTrack.h"
 #include "MVKImage.h"
 #include "MVKQueue.h"
 #include "MVKSwapchain.h"
@@ -112,6 +113,9 @@ id<MTLTexture> MVKImagePlane::getMTLTexture() {
             tex = [dvcMem->_imageMemoryBindings[0]->_image->getMTLTexture(_planeIndex, mtlTexDesc.pixelFormat) retain];
         } else {
             tex = [_image->getMTLDevice() newTextureWithDescriptor: mtlTexDesc];
+            // iSH-AOK: a texture of its own, outside the VkDeviceMemory it is bound to.
+            _aokTrackedBytes = tex.allocatedSize;
+            mvkAOKMemTrack(MVKAOKMemTexture, _aokTrackedBytes, true);
         }
         if (tex.storageMode != MTLStorageModeMemoryless) {
             _image->_device->makeResident(tex);
@@ -147,6 +151,8 @@ id<MTLTexture> MVKImagePlane::getMTLTexture(MTLPixelFormat mtlPixFmt) {
 void MVKImagePlane::releaseMTLTexture() {
     MVKDevice* dev = _image->_device;
     MVKLiveResourceSet& live = dev->getLiveResources();
+    mvkAOKMemTrack(MVKAOKMemTexture, _aokTrackedBytes, false);
+    _aokTrackedBytes = 0;
     if (id<MTLTexture> tex = _mtlTexture) {
         dev->removeResidency(tex);
         live.remove(tex);

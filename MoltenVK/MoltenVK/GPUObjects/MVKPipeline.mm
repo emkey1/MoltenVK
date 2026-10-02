@@ -17,6 +17,7 @@
  */
 
 #include "MVKPipeline.h"
+#include "MVKAOKMemTrack.h"
 #include "MVKCommandBuffer.h"
 #include "MVKInlineObjectConstructor.h"
 #include "MVKImage.h"
@@ -411,6 +412,7 @@ MVKPipeline::MVKPipeline(MVKDevice* device, MVKPipelineCache* pipelineCache, MVK
 	_descriptorSetCount(static_cast<uint32_t>(layout->getDescriptorSetCount())) {
 
 		layout->retain();
+		mvkAOKCountTrack(MVKAOKCountPipeline, true);
 
 		// Establish descriptor counts and push constants use.
 		for (uint32_t stage = kMVKShaderStageVertex; stage < kMVKShaderStageCount; stage++) {
@@ -421,6 +423,7 @@ MVKPipeline::MVKPipeline(MVKDevice* device, MVKPipelineCache* pipelineCache, MVK
 
 
 MVKPipeline::~MVKPipeline() {
+	mvkAOKCountTrack(MVKAOKCountPipeline, false);
 	_layout->release();
 }
 

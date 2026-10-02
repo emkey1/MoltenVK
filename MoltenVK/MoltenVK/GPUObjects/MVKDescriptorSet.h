@@ -555,6 +555,7 @@ private:
 	MVKInlineArray<char> _cpuBuffer;
 	MVKArrayRef<char> _gpuBuffer;
 	id<MTLBuffer> _gpuBufferObject = nullptr;
+	uint64_t _aokTrackedBytes = 0;	// iSH-AOK: in mvkAOKMemTrack
 	uint64_t _gpuBufferGPUAddress = 0;
 	MVKDescriptorSetListItem* _firstFreeDescriptorSet = nullptr;
 	MVKDescriptorPoolFreeList _cpuBufferFreeList;
