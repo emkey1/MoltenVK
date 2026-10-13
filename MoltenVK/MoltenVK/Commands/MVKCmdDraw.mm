@@ -42,9 +42,17 @@ VkResult MVKCmdBindVertexBuffers<N>::setContent(MVKCommandBuffer* cmdBuff,
     MVKVertexMTLBufferBinding b;
     for (uint32_t bindIdx = 0; bindIdx < bindingCount; bindIdx++) {
         MVKBuffer* mvkBuffer = (MVKBuffer*)pBuffers[bindIdx];
-        b.mtlBuffer = mvkBuffer->getMTLBuffer();
-        b.offset = mvkBuffer->getMTLBufferOffset() + pOffsets[bindIdx];
-		b.size = pSizes ? uint32_t(pSizes[bindIdx] == VK_WHOLE_SIZE ? mvkBuffer->getByteCount() - pOffsets[bindIdx] : pSizes[bindIdx]) : 0;
+		if (mvkBuffer) {
+			b.mtlBuffer = mvkBuffer->getMTLBuffer();
+			b.offset = mvkBuffer->getMTLBufferOffset() + pOffsets[bindIdx];
+			b.size = pSizes ? uint32_t(pSizes[bindIdx] == VK_WHOLE_SIZE ? mvkBuffer->getByteCount() - pOffsets[bindIdx] : pSizes[bindIdx]) : 0;
+		} else {
+			// nullDescriptor: VK_NULL_HANDLE is a buffer of zeros, and its offset must be 0.
+			// encode() puts one in its place.
+			b.mtlBuffer = nil;
+			b.offset = 0;
+			b.size = 0;
+		}
 		b.stride = pStrides ? (uint32_t)pStrides[bindIdx] : 0;
         _bindings.push_back(b);
     }
@@ -52,8 +60,26 @@ VkResult MVKCmdBindVertexBuffers<N>::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
+// iSH-AOK: what a null vertex buffer is bound as. Vulkan (nullDescriptor) has every attribute
+// fetched from one read as zeros; Metal has no such buffer, and fetching from none at all is
+// undefined. A block of zeros stands in. A draw that fetches past its end is past what Metal
+// defines too, so it is sized for what programs do with a null binding -- leave it unread, or
+// read a constant from it -- and not for a mesh.
+static const NSUInteger kMVKNullVertexBufferSize = 64 * 1024;
+
 template <size_t N>
 void MVKCmdBindVertexBuffers<N>::encode(MVKCommandEncoder* cmdEncoder) {
+	const MVKMTLBufferAllocation* zeros = nullptr;
+	for (auto& b : _bindings) {
+		if (b.mtlBuffer != nil) { continue; }
+		if ( !zeros ) {
+			zeros = cmdEncoder->getTempMTLBuffer(kMVKNullVertexBufferSize);
+			memset(zeros->getContents(), 0, kMVKNullVertexBufferSize);
+		}
+		b.mtlBuffer = zeros->_mtlBuffer;
+		b.offset = zeros->_offset;
+		b.size = (uint32_t)kMVKNullVertexBufferSize;
+	}
 	cmdEncoder->getState().bindVertexBuffers(_firstBinding, _bindings.contents());
 }
 
@@ -97,9 +123,10 @@ VkResult MVKCmdBindIndexBuffer::setContent(MVKCommandBuffer* cmdBuff,
 
 void MVKCmdBindIndexBuffer::encode(MVKCommandEncoder* cmdEncoder) {
     if (_binding.mtlBuffer == nullptr) {
-        // In the null buffer case, offset must be 0, and since we don't support nullDescriptor, the indices are undefined.
+        // In the null buffer case, offset must be 0, and the indices read as zero (nullDescriptor).
         // Thus, we can use a simple temporary buffer to stand in for the index buffer here.
         const auto* placeholderBuffer = cmdEncoder->getTempMTLBuffer(_binding.size);
+        memset(placeholderBuffer->getContents(), 0, _binding.size);	// iSH-AOK: pooled, so not zeros already
         _binding.mtlBuffer = placeholderBuffer->_mtlBuffer;
         _binding.offset = placeholderBuffer->_offset;
     }

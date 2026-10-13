@@ -636,7 +636,11 @@ void MVKPhysicalDevice::getFeatures(VkPhysicalDeviceFeatures2* features) {
 				auto* robustness2Features = (VkPhysicalDeviceRobustness2FeaturesKHR*)next;
 				robustness2Features->robustBufferAccess2 = false;
 				robustness2Features->robustImageAccess2 = _gpuCapabilities.isAppleGPU;
-				robustness2Features->nullDescriptor = false;
+				// iSH-AOK: VK_NULL_HANDLE in descriptor writes and vertex buffer binds. Mesa 25.2 and
+				// later will not start zink without it. Descriptor writes already take a null
+				// buffer, image, texel buffer and sampler in every layout (MVKDescriptorSet.mm);
+				// MVKCmdBindVertexBuffers and MVKCmdBindIndexBuffer bind zeros for a null buffer.
+				robustness2Features->nullDescriptor = true;
 				break;
 			}
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR: {
